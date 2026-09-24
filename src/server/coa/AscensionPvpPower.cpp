@@ -8,6 +8,7 @@
 #include "ScriptMgr.h"
 #include "SpellAuraEffects.h"
 #include "SpellInfo.h"
+#include <algorithm>
 #include <atomic>
 
 namespace PvpPower
@@ -17,6 +18,29 @@ constexpr uint32 NoRiskAura = 1004119;
 constexpr uint32 PveModeAura = 9931032;
 constexpr uint32 RealmLevelCap = 60;
 std::atomic<bool> enabled{false};
+std::atomic<float> battlegroundDamageMultiplier{1.0f};
+
+bool IsBattlegroundPlayerDamage(Unit* target, Unit* attacker)
+{
+    if (!target || !attacker || !target->GetMap() || !target->GetMap()->IsBattleground())
+        return false;
+
+    Player* source = attacker->GetCharmerOrOwnerPlayerOrPlayerItself();
+    Player* recipient = target->GetCharmerOrOwnerPlayerOrPlayerItself();
+    return source && recipient && source != recipient && source->InBattleground() && recipient->InBattleground();
+}
+
+uint32 ApplyBattlegroundDamageMultiplier(uint32 amount)
+{
+    float multiplier = battlegroundDamageMultiplier.load();
+    if (multiplier >= 1.0f || !amount)
+        return amount;
+    if (multiplier <= 0.0f)
+        return 0;
+
+    uint32 scaled = static_cast<uint32>(double(amount) * multiplier);
+    return scaled ? scaled : 1;
+}
 
 unsigned EquippedPower(Player const* player)
 {
@@ -53,8 +77,15 @@ unsigned HealingPower(Unit const* caster)
 
 uint32 Damage(Unit* target, Unit* attacker, uint32 amount)
 {
-    if (!enabled.load() || !target || !attacker || target == attacker || !amount)
+    if (!target || !attacker || target == attacker || !amount)
         return amount;
+
+    if (IsBattlegroundPlayerDamage(target, attacker))
+        amount = ApplyBattlegroundDamageMultiplier(amount);
+
+    if (!enabled.load())
+        return amount;
+
     Player const* source = attacker->ToPlayer();
     Player const* recipient = target->ToPlayer();
     if (source && (recipient || (!target->GetCharmerOrOwnerPlayerOrPlayerItself() && HighRiskWorld(source))))
@@ -71,6 +102,8 @@ public:
     void OnAfterConfigLoad(bool) override
     {
         enabled.store(sConfigMgr->GetOption<bool>("PvpPower.Enable", false));
+        battlegroundDamageMultiplier.store(std::clamp(
+            sConfigMgr->GetOption<float>("CoA.BattlegroundPlayerDamageMultiplier", 0.5f), 0.0f, 1.0f));
     }
 };
 

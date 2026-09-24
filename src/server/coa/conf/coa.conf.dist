@@ -173,6 +173,15 @@ HighRisk.GoldChance = 50
 
 PvpPower.Enable = 0
 
+#    CoA.BattlegroundPlayerDamageMultiplier
+#        Description: Multiplies damage dealt by players (including playerbots and their
+#                     controlled units) to players in battlegrounds. PvE, open-world combat,
+#                     and arenas are not affected. 0.50 means 50% of normal damage.
+#        Range:      0.0 - 1.0
+#        Default:    0.50
+
+CoA.BattlegroundPlayerDamageMultiplier = 0.50
+
 #    Bloodforged.Enable
 #        Description: Adds one independent Bloodforged roll to eligible open-world creature corpses
 #                     for High-Risk players from level 15, drawn from the reviewed catalogue in
